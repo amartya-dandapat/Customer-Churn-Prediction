@@ -1,0 +1,132 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+import joblib
+
+data = pd.read_csv("D:\Downloads\Data-Resources\Data & Resources\Data\Customer_Data.csv")
+
+data.isna().sum().sort_values(ascending=False).head(15)
+# Count null values in each column
+null_counts = data.isnull().sum().reset_index()
+null_counts.columns = ['Column', 'Null_Count']
+
+# Add percentage of nulls
+null_counts['Null_Percentage'] = (null_counts['Null_Count'] / len(data)) * 100
+
+print(null_counts)
+# Make a copy so we don't overwrite original data
+cleaned_data = data.copy()
+
+# Fill categorical columns with defaults (like ISNULL in SQL)
+cleaned_data['Value_Deal'] = cleaned_data['Value_Deal'].fillna('None')
+cleaned_data['Multiple_Lines'] = cleaned_data['Multiple_Lines'].fillna('No')
+cleaned_data['Internet_Type'] = cleaned_data['Internet_Type'].fillna('None')
+cleaned_data['Online_Security'] = cleaned_data['Online_Security'].fillna('No')
+cleaned_data['Online_Backup'] = cleaned_data['Online_Backup'].fillna('No')
+cleaned_data['Device_Protection_Plan'] = cleaned_data['Device_Protection_Plan'].fillna('No')
+cleaned_data['Premium_Support'] = cleaned_data['Premium_Support'].fillna('No')
+cleaned_data['Streaming_TV'] = cleaned_data['Streaming_TV'].fillna('No')
+cleaned_data['Streaming_Movies'] = cleaned_data['Streaming_Movies'].fillna('No')
+cleaned_data['Streaming_Music'] = cleaned_data['Streaming_Music'].fillna('No')
+cleaned_data['Unlimited_Data'] = cleaned_data['Unlimited_Data'].fillna('No')
+cleaned_data['Churn_Category'] = cleaned_data['Churn_Category'].fillna('Others')
+cleaned_data['Churn_Reason'] = cleaned_data['Churn_Reason'].fillna('Others')
+
+# Numeric columns: you can fill with 0 or mean/median depending on context
+num_cols = ['Monthly_Charge', 'Total_Charges', 'Total_Refunds', 
+            'Total_Extra_Data_Charges', 'Total_Long_Distance_Charges', 'Total_Revenue']
+
+for col in num_cols:
+    cleaned_data[col] = cleaned_data[col].fillna(0)   # or use .fillna(cleaned_data[col].median())
+
+# Now cleaned_data is your "prod_Churn" equivalent
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+
+
+cleaned_data = data.copy()
+
+categorical_fill = ['Value_Deal', 'Multiple_Lines', 'Internet_Type', 'Online_Security',
+                    'Online_Backup', 'Device_Protection_Plan', 'Premium_Support',
+                    'Streaming_TV', 'Streaming_Movies', 'Streaming_Music', 'Unlimited_Data']
+
+for col in categorical_fill:
+    if col in cleaned_data.columns:
+        cleaned_data[col].fillna('None', inplace=True)
+
+numeric_cols = ['Monthly_Charge', 'Total_Charges', 'Total_Refunds', 
+                'Total_Extra_Data_Charges', 'Total_Long_Distance_Charges', 'Total_Revenue']
+
+for col in numeric_cols:
+    if col in cleaned_data.columns:
+        cleaned_data[col].fillna(0, inplace=True)
+
+
+columns_to_drop = ['Customer_ID', 'Churn_Category', 'Churn_Reason']
+cleaned_data = cleaned_data.drop([col for col in columns_to_drop if col in cleaned_data.columns], axis=1)
+
+columns_to_encode = [
+    'Gender', 'Married', 'State', 'Value_Deal', 'Phone_Service', 'Multiple_Lines',
+    'Internet_Service', 'Internet_Type', 'Online_Security', 'Online_Backup',
+    'Device_Protection_Plan', 'Premium_Support', 'Streaming_TV', 'Streaming_Movies',
+    'Streaming_Music', 'Unlimited_Data', 'Contract', 'Paperless_Billing',
+    'Payment_Method'
+]
+
+label_encoders = {}
+for col in columns_to_encode:
+    if col in cleaned_data.columns:
+        le = LabelEncoder()
+        cleaned_data[col] = le.fit_transform(cleaned_data[col])
+        label_encoders[col] = le
+
+
+# Strip spaces to avoid mapping errors
+cleaned_data['Customer_Status'] = cleaned_data['Customer_Status'].str.strip()
+cleaned_data['Customer_Status'] = cleaned_data['Customer_Status'].map({'Stayed': 0, 'Churned': 1})
+
+# Drop rows where target became NaN due to unexpected values
+cleaned_data = cleaned_data.dropna(subset=['Customer_Status'])
+
+
+X = cleaned_data.drop('Customer_Status', axis=1)
+y = cleaned_data['Customer_Status']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Now your model is ready to use
+
+
+# ---------------------------
+y_pred = rf_model.predict(X_test)
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# ---------------------------
+
+# ---------------------------
+importances = rf_model.feature_importances_
+indices = np.argsort(importances)[::-1]
+
+plt.figure(figsize=(15, 6))
+sns.barplot(x=importances[indices], y=X.columns[indices])
+plt.title('Feature Importances')
+plt.xlabel('Relative Importance')
+plt.ylabel('Feature Names')
+plt.show()
